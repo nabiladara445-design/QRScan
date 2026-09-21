@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="theme-color" content="#14070a" />
+<title>AbsenQR - Universitas Jabal Ghafur</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════
+     LOADING SCREEN
+     ═══════════════════════════════════════════════════════════ -->
+<div class="loading-screen" id="loadingScreen">
+  <div class="loader-wrap">
+    <div class="loader-logo-img">
+      <img src="Unigha.png" alt="Logo" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2248%22 fill=%22%23f5b8c8%22 stroke=%22%23000%22 stroke-width=%222%22/><text x=%2250%22 y=%2258%22 text-anchor=%22middle%22 font-size=%2224%22 font-weight=%22bold%22 fill=%22%23000%22>A</text></svg>'" />
+    </div>
+    <div class="loader-title">AbsenQR</div>
+    <div class="loader-track"><div class="loader-fill" id="loaderFill"></div></div>
+    <div class="loader-percent" id="loaderPercent">0%</div>
+    <div class="loader-sub" id="loaderSub">Memuat sistem...</div>
+  </div>
+</div>
+
+<div id="flashOverlay"></div>
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     VIEW: LOGIN
+     ═══════════════════════════════════════════════════════════ -->
+<div class="view" id="viewLogin">
+  <div class="auth-card" id="authCard">
+    <div class="corner-acc tl"></div>
+    <div class="corner-acc br"></div>
+    <div class="shard tl"></div>
+    <div class="shard br"></div>
+    <div class="shard-logo">
+      <img src="Unigha.png" alt="Logo" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2248%22 fill=%22%23f5b8c8%22 stroke=%22%23000%22 stroke-width=%222%22/><text x=%2250%22 y=%2258%22 text-anchor=%22middle%22 font-size=%2224%22 font-weight=%22bold%22 fill=%22%23000%22>A</text></svg>'" />
+    </div>
+
+    <!-- SIGN IN -->
+    <div class="auth-panel active" id="panelSignIn">
+      <div class="auth-header">
+        <div class="auth-logo-big">
+          <img src="Unigha.png" alt="Logo" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2248%22 fill=%22%23f5b8c8%22 stroke=%22%23000%22 stroke-width=%222%22/><text x=%2250%22 y=%2258%22 text-anchor=%22middle%22 font-size=%2224%22 font-weight=%22bold%22 fill=%22%23000%22>A</text></svg>'" />
+        </div>
+        <h1 class="auth-title">Welcome <span class="highlight">Back</span></h1>
+        <p class="auth-sub">Masuk untuk mengakses akun Anda</p>
+      </div>
+
+      <div class="error-msg" id="loginError">
+        <i class="fas fa-exclamation-circle"></i>
+        <span id="loginErrorText">Error</span>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Login Sebagai</label>
+        <div class="input-wrap">
+          <i class="fas fa-user-tag"></i>
+          <select id="loginRole" onchange="onRoleChange()">
+            <option value="" selected>— Pilih Role —</option>
+            <option value="mahasiswa">🎓 Mahasiswa</option>
+            <option value="dosen">👨‍🏫 Dosen</option>
+            <option value="admin">👨‍💼 Admin</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="panelMhs">
+        <div class="form-group">
+          <label class="form-label">NIM</label>
+          <div class="input-wrap">
+            <i class="fas fa-id-card"></i>
+            <input type="text" id="mhsNim" placeholder="24105111XXX" maxlength="15" inputmode="numeric" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">PIN</label>
+          <div class="input-wrap">
+            <i class="fas fa-lock"></i>
+            <input type="password" id="mhsPassword" placeholder="4 digit terakhir NIM" maxlength="4" inputmode="numeric" />
+            <button class="toggle-pass" onclick="togglePass('mhsPassword', this)"><i class="fas fa-eye"></i></button>
+          </div>
+        </div>
+        <div class="checkbox-row">
+          <label><input type="checkbox" id="rememberMe" /> Ingat saya</label>
+        </div>
+        <button class="btn-primary" onclick="doLoginMhs()">
+          <span>Sign In</span> <i class="fas fa-arrow-right"></i>
+        </button>
+        <div class="divider-line"><span>ATAU</span></div>
+        <button class="btn-secondary" onclick="goToQrLogin()">
+          <i class="fas fa-qrcode"></i> Login pakai QR Code
+        </button>
+      </div>
+
+      <div id="panelStaff" style="display:none;">
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <div class="input-wrap">
+            <i class="fas fa-envelope"></i>
+            <input type="text" id="staffEmail" placeholder="nama@unigha.ac.id" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <div class="input-wrap">
+            <i class="fas fa-lock"></i>
+            <input type="password" id="staffPassword" placeholder="••••••••" />
+            <button class="toggle-pass" onclick="togglePass('staffPassword', this)"><i class="fas fa-eye"></i></button>
+          </div>
+        </div>
+        <div class="checkbox-row">
+          <label><input type="checkbox" id="rememberStaff" /> Ingat saya</label>
+          <span class="link-text" onclick="forgotPass()">Lupa password?</span>
+        </div>
+        <button class="btn-primary" onclick="doLoginStaff()">
+          <span>Sign In</span> <i class="fas fa-arrow-right"></i>
+        </button>
+      </div>
+
+      <p class="switch-text">
+        Belum punya akun? 
+        <span class="link-text" onclick="switchAuth('panelSignUp')">Sign Up</span>
+      </p>
+    </div>
+
+    <!-- SIGN UP -->
+    <div class="auth-panel" id="panelSignUp">
+      <div class="auth-header">
+        <div class="auth-logo-big">
+          <img src="Unigha.png" alt="Logo" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2248%22 fill=%22%23f5b8c8%22 stroke=%22%23000%22 stroke-width=%222%22/><text x=%2250%22 y=%2258%22 text-anchor=%22middle%22 font-size=%2224%22 font-weight=%22bold%22 fill=%22%23000%22>A</text></svg>'" />
+        </div>
+        <h1 class="auth-title">Create <span class="highlight">Account</span></h1>
+        <p class="auth-sub">Daftar akun mahasiswa baru</p>
+      </div>
+
+      <div class="error-msg" id="regError">
+        <i class="fas fa-exclamation-circle"></i>
+        <span id="regErrorText">Error</span>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Nama Lengkap</label>
+        <div class="input-wrap"><i class="fas fa-user"></i><input type="text" id="regNama" placeholder="Nama lengkap" /></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">NIM</label>
+        <div class="input-wrap"><i class="fas fa-id-card"></i><input type="text" id="regNim" placeholder="24105111XXX" maxlength="15" inputmode="numeric" /></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <div class="input-wrap"><i class="fas fa-envelope"></i><input type="text" id="regEmail" placeholder="nama@student.unigha.ac.id" /></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Kelas</label>
+        <div class="input-wrap">
+          <i class="fas fa-users"></i>
+          <select id="regKelas">
+            <option value="" selected>— Pilih Kelas —</option>
+            <option value="V.1">V.1</option>
+            <option value="V.2">V.2</option>
+            <option value="V.3">V.3</option>
+            <option value="V.4">V.4</option>
+            <option value="V.5">V.5</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Jurusan</label>
+        <div class="input-wrap"><i class="fas fa-graduation-cap"></i><input type="text" id="regJurusan" placeholder="Teknik Informatika" value="Teknik Informatika" /></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">PIN (4 digit)</label>
+        <div class="input-wrap"><i class="fas fa-key"></i><input type="tel" id="regPin" placeholder="••••" maxlength="4" inputmode="numeric" style="text-align:center;letter-spacing:14px;font-size:18px;" /></div>
+      </div>
+      <div class="checkbox-row">
+        <label><input type="checkbox" id="termsCheck" /> Setuju dengan <span class="link-text">Terms & Privacy</span></label>
+      </div>
+      <button class="btn-primary" onclick="doRegister()">
+        <span>Create Account</span> <i class="fas fa-arrow-right"></i>
+      </button>
+
+      <p class="switch-text">
+        Sudah punya akun? 
+        <span class="link-text" onclick="switchAuth('panelSignIn')">Sign In</span>
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     VIEW: QR LOGIN
+     ═══════════════════════════════════════════════════════════ -->
+<div class="view" id="viewQrLogin">
+  <div class="auth-card" style="min-height: 580px;">
+    <div class="corner-acc tl"></div>
+    <div class="corner-acc br"></div>
+
+    <div class="auth-panel active">
+      <div class="auth-header" style="margin-bottom:14px;">
+        <div class="auth-logo-big" style="width:60px;height:60px;">
+          <img src="Unigha.png" alt="Logo" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2248%22 fill=%22%23f5b8c8%22 stroke=%22%23000%22 stroke-width=%222%22/><text x=%2250%22 y=%2258%22 text-anchor=%22middle%22 font-size=%2224%22 font-weight=%22bold%22 fill=%22%23000%22>A</text></svg>'" />
+        </div>
+        <h1 class="auth-title">Scan <span class="highlight">QR Code</span></h1>
+        <p class="auth-sub">Scan QR, lalu masukkan PIN</p>
+      </div>
+
+      <div class="error-msg" id="qrLoginError">
+        <i class="fas fa-exclamation-circle"></i>
+        <span id="qrLoginErrorText">Error</span>
+      </div>
+
+      <!-- SCAN STEP -->
+      <div id="qrScanStep">
+        <div class="qr-tabs">
+          <button class="qr-tab active" data-mode="camera" onclick="switchQrMode('camera')">
+            <i class="fas fa-camera"></i> Kamera
+          </button>
+          <button class="qr-tab" data-mode="gallery" onclick="switchQrMode('gallery')">
+            <i class="fas fa-image"></i> Galeri
+          </button>
+        </div>
+
+        <div class="scan-area">
+          <div id="qrLoginReader"></div>
+          <div id="qrGalleryArea" class="gallery-area hidden">
+            <i class="fas fa-cloud-upload-alt"></i>
+            <p>Upload gambar QR dari galeri</p>
+          </div>
+        </div>
+
+        <input type="file" id="qrFileInput" accept="image/*" class="file-hidden" onchange="scanQrFromFile(event)" />
+
+        <button class="btn-primary" id="btnCameraScan" onclick="startQrLoginScanner()">
+          <i class="fas fa-play"></i> Mulai Scan
+        </button>
+        <button class="btn-secondary hidden" id="btnPickGallery" onclick="document.getElementById('qrFileInput').click()">
+          <i class="fas fa-image"></i> Pilih Gambar QR
+        </button>
+      </div>
+
+      <!-- OTP STEP -->
+      <div class="otp-section hidden" id="otpSection">
+        <div class="otp-icon"><i class="fas fa-key"></i></div>
+        <div class="otp-title">Verify <span class="hl">PIN</span></div>
+        <div class="otp-sub">Masukkan 4 digit PIN Anda</div>
+
+        <div class="detected-info-mini" id="otpDetectedInfo"></div>
+
+        <div class="otp-digits-wrap" id="otpDigitsWrap">
+          <div class="otp-digit" id="otpD0"></div>
+          <div class="otp-digit" id="otpD1"></div>
+          <div class="otp-digit" id="otpD2"></div>
+          <div class="otp-digit" id="otpD3"></div>
+          <div class="otp-circle" id="otpCircle"><i class="fas fa-circle-notch fa-spin"></i></div>
+        </div>
+
+        <input type="tel" id="otpHiddenInput" maxlength="4" inputmode="numeric" style="position:absolute;opacity:0;pointer-events:none;left:-9999px;" />
+
+        <button class="otp-verify-btn" id="otpVerifyBtn" onclick="doLoginQr()">
+          <i class="fas fa-lock"></i> <span id="otpVerifyText">Verifying Code...</span>
+        </button>
+      </div>
+
+      <p class="switch-text">
+        <span class="link-text" onclick="backToLogin()">← Kembali ke Login</span>
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     VIEW: MAIN APP
+     ═══════════════════════════════════════════════════════════ -->
+<div class="view" id="viewApp">
+  <div class="app-header">
+    <div class="header-inner">
+      <div class="campus-logo">
+        <img src="Unigha.png" alt="Logo" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2248%22 fill=%22%23f5b8c8%22 stroke=%22%23000%22 stroke-width=%222%22/><text x=%2250%22 y=%2258%22 text-anchor=%22middle%22 font-size=%2224%22 font-weight=%22bold%22 fill=%22%23000%22>A</text></svg>'" />
+      </div>
+      <div class="campus-info">
+        <div class="campus-name">UNIVERSITAS JABAL GHAFUR</div>
+        <div class="campus-role" id="headerSub">Loading...</div>
+      </div>
+      <div class="header-actions">
+        <!-- STICKMAN THEME TOGGLE -->
+        <div class="theme-switch" id="themeSwitch" onclick="toggleTheme()" title="Toggle theme">
+          <canvas id="themeCanvas" width="120" height="60"></canvas>
+        </div>
+        <button class="icon-btn" id="btnSound" onclick="toggleSound()"><i class="fas fa-volume-up"></i></button>
+        <button class="icon-btn" onclick="openNotifModal()">
+          <i class="fas fa-bell"></i>
+          <span class="notif-dot" id="notifDot">0</span>
+        </button>
+        <button class="icon-btn danger" onclick="doLogout()"><i class="fas fa-sign-out-alt"></i></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-content" id="appContent"></div>
+
+  <!-- LIQUID NAVIGATION -->
+  <div class="liquid-nav-wrap">
+    <nav class="liquid-nav">
+      <svg class="liquid-svg" viewBox="0 0 500 80" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="liquidGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#f5b8c8"/>
+            <stop offset="100%" stop-color="#d898a8"/>
+          </linearGradient>
+        </defs>
+        <path id="liquidPath" d="" fill="url(#liquidGrad)" opacity="0.15"/>
+      </svg>
+      <div class="liquid-items" id="liquidItems"></div>
+      <div class="liquid-indicator" id="liquidIndicator">
+        <i class="fas fa-home" id="indicatorIcon"></i>
+      </div>
+    </nav>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MODAL OVERLAY
+     ═══════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modalContent"></div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
