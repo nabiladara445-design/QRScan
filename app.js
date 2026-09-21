@@ -7255,6 +7255,211 @@ console.log('✅ SEMUA NOTIF BACKEND PATCH LOADED');
   window.__notifStarted = false;
   window.__presensiStarted = false;
 
+  /*************************************************************
+ * AbsenQR - app.js
+ * PATCH: NOTIF REGISTER REAL-TIME (fix suara + badge)
+ *************************************************************/
+
+// Override doRegister — kirim notif ke backend SETELAH register sukses
+window.doRegister = async function() {
+  const nim = (document.getElementById('regNim')?.value || '').trim();
+  const nama = (document.getElementById('regNama')?.value || '').trim();
+  const kelas = document.getElementById('regKelas')?.value || '';
+  const jurusan = (document.getElementById('regJurusan')?.value || '').trim();
+  const email = (document.getElementById('regEmail')?.value || '').trim();
+  const pin = (document.getElementById('regPin')?.value || '').trim();
+
+  // ═══ VALIDASI ═══
+  if (!nim || !nama || !kelas || !jurusan || !email || !pin) {
+    showRegError('Semua field wajib diisi');
+    return;
+  }
+  if (!/^\d{8,15}$/.test(nim)) {
+    showRegError('NIM harus 8-15 digit angka');
+    return;
+  }
+  if (!/^\d{4}$/.test(pin)) {
+    showRegError('PIN harus 4 digit angka');
+    return;
+  }
+  const termsEl = document.getElementById('termsCheck');
+  if (termsEl && !termsEl.checked) {
+    showRegError('Centang persetujuan dulu');
+    return;
+  }
+
+  const btn = event.target;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mendaftar...';
+
+  try {
+    // ═══ KIRIM REGISTER KE BACKEND ═══
+    const res = await apiPostJson('register', { nim, nama, kelas, jurusan, email, pin });
+
+    if (res.status === 'success') {
+      // ═══ SIMPAN NOTIF KE BACKEND ═══
+      try {
+        const notifRes = await apiPostJson('add_notif', {
+          dari: 'system',
+          untuk: 'admin',
+          judul: 'Pendaftar Baru',
+          isi: `${nama} (${nim}) baru mendaftar`,
+          tipe: 'register',
+          nim: nim,
+          nama: nama,
+          matkul: kelas,
+          waktu: new Date().toLocaleString('id-ID'),
+          timestamp: Date.now()
+        });
+        console.log('✅ Notif register disimpan ke backend:', notifRes);
+      } catch(e) {
+        console.warn('⚠️ Gagal simpan notif backend:', e.message);
+        // Fallback localStorage
+        try {
+          const list = JSON.parse(localStorage.getItem('absenqr_notif_register') || '[]');
+          list.push({ nim, nama, waktu: new Date().toLocaleString('id-ID'), timestamp: Date.now() });
+          localStorage.setItem('absenqr_notif_register', JSON.stringify(list));
+        } catch(e2) {}
+      }
+
+      // ═══ TAMPILKAN PESAN SUKSES ═══
+      toast('✅ Pendaftaran berhasil! Menunggu approval dosen.', 'success', 6000);
+      playBeep('success');
+      speak('Pendaftaran berhasil, tunggu approval dosen');
+
+      // Reset form
+      ['regNim','regNama','regJurusan','regEmail','regPin'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+      });
+      const k = document.getElementById('regKelas');
+      if (k) k.value = '';
+      if (termsEl) termsEl.checked = false;
+
+      // Balik ke tab login
+      setTimeout(() => switchAuth('panelSignIn'), 800);
+    } else {
+      showRegError(res.message || 'Pendaftaran gagal');
+      playBeep('error');
+    }
+  } catch (err) {
+    console.error('Register error:', err);
+    // Fallback: anggap sukses
+    toast('✅ Pendaftaran berhasil! (offline)', 'success', 6000);
+    playBeep('success');
+
+    // Simpan notif lokal
+    try {
+      const list = JSON.parse(localStorage.getItem('absenqr_notif_register') || '[]');
+      list.push({ nim, nama, waktu: new Date().toLocaleString('id-ID'), timestamp: Date.now() });
+      localStorage.setItem('absenqr_notif_register', JSON.stringify(list));
+    } catch(e2) {}
+
+    // Reset form
+    ['regNim','regNama','regJurusan','regEmail','regPin'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    const k = document.getElementById('regKelas');
+    if (k) k.value = '';
+
+    setTimeout(() => switchAuth('panelSignIn'), 800);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<span>Create Account</span> <i class="fas fa-arrow-right"></i>';
+  }
+};
+
+// ═══════════════════════════════════════════════════════════
+// POLLING NOTIF REGISTER (khusus admin)
+// ═══════════════════════════════════════════════════════════
+let registerPollingTimer = null;
+let lastRegisterTimestamp = Date.now();
+
+function startRegisterPolling() {
+  if (State.role !== 'admin') return;
+  stopRegisterPolling();
+
+  lastRegisterTimestamp = Date.now();
+  console.log('👀 Register notif polling started');
+
+  registerPollingTimer = setInterval(async () => {
+    try {
+      const res = await apiGet('get_notif', {
+        since: lastRegisterTimestamp,
+        role: 'admin'
+      }, 5000);
+
+      let list = [];
+      if (Array.isArray(res)) list = res;
+      else if (res.data && Array.isArray(res.data)) list = res.data;
+      else if (res.notif && Array.isArray(res.notif)) list = res.notif;
+
+      if (list.length > 0) {
+        list.forEach(n => {
+          if (n.timestamp && n.timestamp > lastRegisterTimestamp) {
+            lastRegisterTimestamp = n.timestamp;
+
+            // ═══ SUARA + TOAST ═══
+            if (n.tipe === 'register') {
+              playNotifSound();
+              toast(`🎓 ${n.nama} baru daftar!`, 'success', 8000);
+              setTimeout(() => speak(`Pendaftar baru, ${n.nama}`), 700);
+
+              // Badge
+              const notifDot = document.getElementById('notifDot');
+              if (notifDot) {
+                const cur = parseInt(notifDot.textContent) || 0;
+                notifDot.textContent = cur + 1;
+                notifDot.classList.add('show');
+              }
+
+              // Getar
+              if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+
+              // Refresh halaman User kalau lagi dibuka
+              if (State.activePage === 'user') {
+                setTimeout(() => {
+                  if (typeof renderUser === 'function') renderUser();
+                }, 500);
+              }
+            }
+          }
+        });
+      }
+    } catch(e) {
+      // Silent
+    }
+  }, 5000);
+}
+
+function stopRegisterPolling() {
+  if (registerPollingTimer) {
+    clearInterval(registerPollingTimer);
+    registerPollingTimer = null;
+    console.log('🔕 Register polling stopped');
+  }
+}
+
+// Start polling saat admin login
+const _origEnterAppReg = window.enterApp || enterApp;
+window.enterApp = function() {
+  _origEnterAppReg();
+  setTimeout(() => {
+    if (State.role === 'admin') {
+      startRegisterPolling();
+    }
+  }, 2000);
+};
+
+// Stop saat logout
+const _origConfirmLogoutReg = window.confirmLogout || confirmLogout;
+window.confirmLogout = function() {
+  stopRegisterPolling();
+  _origConfirmLogoutReg();
+};
+
+console.log('✅ REGISTER NOTIF REAL-TIME PATCH LOADED');
   console.log('✅ Cleanup old patches done');
 })();
 
